@@ -1,3 +1,5 @@
+import math
+
 from transformers import PretrainedConfig
 
 
@@ -71,20 +73,90 @@ class MokioMindConfig(PretrainedConfig):
             else None
         )
 
+
 import torch
 import torch.nn as nn
+from typing import Optional
+
 
 class RMSNorm(nn.Module):
-    def __init__(self,dim:int,eps=1e-5):
+    def __init__(self, dim: int, eps=1e-5):
         super().__init__()
         self.dim = dim
         self.eps = eps
         self.weight = nn.Parameter(torch.ones(dim))
         # 需要将weigh设置为可训练的参数
 
-    def _norm(self,x):
-        return x*torch.rsqrt(x.pow(2).mean(-1,keepdim=True)+self.eps)
+    def _norm(self, x):
+        return x * torch.rsqrt(x.pow(2).mean(-1, keepdim=True) + self.eps)
         # 注意需要keepdim
-    def forward(self,x):
+
+    def forward(self, x):
         return self.weight * self._norm(x).type_as(x)
         # 注意需要保持返回的数据类型和传入的一致
+
+
+def precompute_freqs_cis(
+    dim: int, end: int = 32768, rope_base=1e6, rope_scaling: Optional[dict] = None
+):
+    freqs, attnfactor = (
+        1.0 / (rope_base ** (torch.arange(0, dim, 2)[: dim // 2].float() / dim)),
+        1.0,
+    )
+    print(freqs.shape)
+    if rope_scaling is not None:
+        orig_max, factor, beta_fast, beta_slow, attnfactor = (
+            rope_scaling.get("original_max_position_embeddings", 2048),
+            rope_scaling.get("factor", 16),
+            rope_scaling.get("beta_fast", 32.0),
+            rope_scaling.get("beta_slow", 1.0),
+            rope_scaling.get("attention_factor", 1.0),
+        )
+        if end > orig_max:
+
+            def inv_dim(b: float):
+                return (
+                    dim
+                    * math.log(orig_max / (2 * math.pi * b))
+                    / (2 * math.log(rope_base))
+                )
+
+            # 4. 计算高频区和低频区的维度切分点
+            # low: 不需要缩放的高频部分的最高索引
+            # high: 需要完全缩放的低频部分的最低索引
+            low, high = (
+                max(math.floor(inv_dim(beta_fast)), 0),
+                min(math.ceil(inv_dim(beta_slow)), dim // 2 - 1),
+            )
+
+            ramp = torch.clamp(
+                (torch.arange(dim // 2, device=freqs.device).float() - low)
+                / max((high - low), 0.001),
+                0,
+                1,
+            )
+
+            freqs = (1 - ramp + ramp / factor) * freqs
+
+    t = torch.arange(end, device=freqs.device).float()
+    freqs = torch.outer(t, freqs)
+    freq_cos = torch.cat((torch.cos(freqs), torch.cos(freqs)), dim=-1) * attnfactor
+    freq_sin = torch.cat((torch.sin(freqs), torch.sin(freqs)), dim=-1) * attnfactor
+
+    return freq_cos, freq_sin
+
+
+def apply_rotary_pos_emb(q, k, cos, sin, position_ids=None, unsqueeze_dim=1):
+    def rotate_half(x):
+        return torch.cat(
+            -x[..., : x.shape[-1] // 2], x[..., x.shape[-1] // 2 :], dim=-1
+        )
+
+    q_embed = q * cos.unsqueeze(unsqueeze_dim) + rotate_half(q) * sin.unsqueeze(
+        unsqueeze_dim
+    )
+    k_embed = k * cos.unsqueeze(unsqueeze_dim) + rotate_half(k) * sin.unsqueeze(
+        unsqueeze_dim
+    )
+
+    return q_embed, k_embed

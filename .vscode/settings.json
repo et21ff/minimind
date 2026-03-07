@@ -1,0 +1,6 @@
+{
+    "python.defaultInterpreterPath": "/root/minimind/.venv/bin/python",
+    "editor.defaultFormatter": "charliermarsh.ruff",
+    "editor.formatOnSave": true,
+    "python.analysis.extraPaths": ["${workspaceFolder}/.venv/lib/python3.13/site-packages"]
+}
