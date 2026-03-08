@@ -1,34 +1,32 @@
 import torch
 
-# x = torch.tensor([1,2,3,4,5])
-# y = torch.tensor([10,20,30,40,50])
+import torch.nn as nn
 
-# condition = x>3
+dropout_layer = nn.Dropout(p=0.5)
 
-# result = torch.where(x>3,x,y)
-# # tensor([10, 20, 30,  4,  5])
-# print(result)
+# Dropout expects floating-point tensors.
+t = torch.tensor([1.0, 2.0, 3.0], dtype=torch.float32)
 
-# t1 = torch.arange(0,10,2) #(start,end,step_len)
-# print(t1) # tensor([0, 2, 4, 6, 8])
-# t2 = torch.arange(5,0,-1)
-# print(t2) # tensor([5, 4, 3, 2, 1])
+print(dropout_layer(t))
+t = torch.tensor([[1.0, 2.0, 3.0]], dtype=torch.float32)
+linear_layer = nn.Linear(in_features=3, out_features=5, bias=True)
 
-# v1 = torch.tensor([1,2,3])
-# v2 = torch.tensor([4,5,6])
-# # result = torch.outer(v1,v2)
-# print(torch.outer(v1,v2))
-# # tensor([[ 4,  5,  6],
-# #         [ 8, 10, 12],
-# #         [12, 15, 18]])
+print(linear_layer(t))
 
-# t1 = torch.ones(2,2,3)
-# t2 = torch.ones(2,2,3)
-# print(t1.shape)
-# print(torch.cat((t1,t2),dim=0).shape)
-# print(torch.cat((t1,t2),dim=1).shape)
-# print(torch.cat((t1,t2),dim=-1).shape)
+t = torch.tensor([[1, 2, 3, 4, 5, 6], [7, 8, 9, 10, 11, 12]])
 
-# t1 = torch.tensor([1,2,3])
-# print(t1.shape)
-# print(t1.unsqueeze(0).shape)
+t_view1 = t.view(3, 4)
+print(t_view1)
+t_view2 = t.view(4, 3)
+print(t_view2)
+
+x = torch.tensor([[1, 2, 3], [4, 5, 6], [7, 8, 9]])
+print(torch.triu(x, diagonal=0))
+
+print(torch.triu(x, diagonal=1))
+
+x = torch.arange(1, 7)
+y = torch.reshape(x, (2, 3))
+print(y)
+z = torch.reshape(x, (3, -1))
+print(z)
