@@ -11,4 +11,9 @@ dependencies = [
     "ruff>=0.15.5",
     "torch>=2.9.0",
     "transformers>=4.57.1",
+    "datasets>=3.0.0",
+    "einops",
+    "tiktoken",
+    "sentencepiece>=0.2.0",
+    "protobuf>=5.29.0"
 ]
